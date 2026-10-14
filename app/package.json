@@ -1,0 +1,35 @@
+{
+  "name": "lineup-vault",
+  "productName": "라인업 보관함",
+  "version": "1.0.0",
+  "description": "발로란트 라인업을 스크린샷 3장으로 저장하는 PC 앱",
+  "author": "mememe12012",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "io.github.mememe12012.lineupvault",
+    "productName": "라인업 보관함",
+    "files": ["main.js", "index.html", "package.json"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "LineupVault-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "라인업 보관함",
+      "installerLanguages": ["ko_KR"],
+      "language": "1042"
+    }
+  }
+}
