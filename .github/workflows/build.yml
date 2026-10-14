@@ -1,0 +1,49 @@
+name: Windows 앱 빌드
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "lineup-vault.html"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 앱 화면 복사
+        shell: bash
+        run: cp lineup-vault.html app/index.html
+
+      - name: 설치 파일 만들기
+        working-directory: app
+        run: |
+          npm install
+          npm run dist
+
+      - name: 버전 읽기
+        id: ver
+        shell: bash
+        run: echo "v=$(node -p "require('./app/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: 릴리스에 올리기
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: 라인업 보관함 v${{ steps.ver.outputs.v }}
+          make_latest: true
+          body: |
+            Windows용 라인업 보관함 설치 파일이에요.
+            LineupVault-Setup.exe를 받아서 실행하면 설치돼요.
+          files: app/dist/LineupVault-Setup.exe
