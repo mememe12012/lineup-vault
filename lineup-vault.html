@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>라인업 보관함</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: tactical console — fixed filter rail on the left, card grid of lineups on the right, detail opens as a 3-step strip (stand → aim → land) */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --raise:#e3e8ee; --line:#cfd6df;
+  --fg:#15202b; --muted:#5b6876; --accent:#d9480f; --accent-ink:#ffffff; --star:#c98a00; --danger:#c92a2a;
+  --atk:#c2410c; --def:#0e7490;
+  --display:"Oxanium","Noto Sans KR",system-ui,sans-serif;
+  --body:"Noto Sans KR",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141a; --panel:#161d25; --raise:#1e2731; --line:#2a3542;
+  --fg:#e6ebf0; --muted:#8c9aa8; --accent:#ff7a3d; --accent-ink:#1a0d05; --star:#f2b632; --danger:#ff6b6b;
+  --atk:#ff8a4c; --def:#3bc0d6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --panel:#161d25; --raise:#1e2731; --line:#2a3542;
+  --fg:#e6ebf0; --muted:#8c9aa8; --accent:#ff7a3d; --accent-ink:#1a0d05; --star:#f2b632; --danger:#ff6b6b;
+  --atk:#ff8a4c; --def:#3bc0d6; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.5}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
+.rail{background:var(--panel);border-right:1px solid var(--line);padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;display:flex;flex-direction:column;gap:18px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
+.brand{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;background:var(--accent);transform:rotate(45deg);display:inline-block}
+.brand small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
+.fgroup{display:flex;flex-direction:column;gap:6px}
+.flabel{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+select,input[type=text],input[type=search],textarea{width:100%;background:var(--raise);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+textarea{resize:vertical;min-height:70px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{flex:1;min-width:0;padding:7px 8px;border:1px solid var(--line);background:var(--raise);border-radius:var(--r);cursor:pointer;font-size:13px}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.rail .count{margin-top:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.store-note{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r);padding:8px}
+
+main{min-width:0;padding-block:20px;padding-left:24px;padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.top input{flex:1;min-width:180px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.danger{color:var(--danger)}
+.btn.ghost{background:transparent}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;display:flex;flex-direction:column;text-align:left;padding:0}
+.card:hover{border-color:var(--accent)}
+.thumb{aspect-ratio:16/9;max-width:100%;background:var(--raise);position:relative;display:grid;place-items:center;color:var(--muted);font-family:var(--mono);font-size:12px}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.side-tag{position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--panel);letter-spacing:.04em}
+.side-tag.atk{color:var(--atk)} .side-tag.def{color:var(--def)}
+.fav{position:absolute;top:6px;right:8px;font-size:18px;color:var(--star);text-shadow:0 0 3px #0008}
+.cbody{padding:10px 12px 12px;display:flex;flex-direction:column;gap:4px}
+.ctitle{font-weight:700;font-size:15px;text-wrap:balance}
+.meta{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.meta b{font-weight:500;color:var(--fg)}
+.chip{font-size:11px;background:var(--raise);border-radius:3px;padding:1px 6px;color:var(--muted)}
+.ex{color:var(--accent);font-weight:700}
+
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:40px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty h2{font-family:var(--display);color:var(--fg);margin:0;font-size:20px}
+
+/* dialogs */
+.scrim{position:fixed;inset:0;background:#0009;display:flex;align-items:flex-start;justify-content:center;overflow:auto;z-index:10;padding-block:max(24px,env(safe-area-inset-top,0px)) 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(980px,100%);padding:20px;display:flex;flex-direction:column;gap:16px}
+.sheet h2{font-family:var(--display);margin:0;font-size:22px;text-wrap:balance}
+.shead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.step{display:flex;flex-direction:column;gap:6px;min-width:0}
+.step .sl{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.step .sl b{color:var(--accent)}
+.shot{aspect-ratio:16/9;max-width:100%;background:var(--raise);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:12px;text-align:center;padding:0;cursor:zoom-in}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.drop{cursor:pointer;border-style:dashed;padding:8px}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.drop.active{outline:2px solid var(--accent)}
+.form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.form .wide{grid-column:span 2} .form .full{grid-column:1/-1}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.howto{background:var(--raise);border-radius:var(--r);padding:10px 12px;white-space:pre-wrap}
+.kv{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.kv span{color:var(--muted)} .kv b{font-weight:500}
+.hint{font-size:12px;color:var(--muted)}
+.zoom{position:fixed;inset:0;background:#000d;z-index:20;display:grid;place-items:center;padding:16px;cursor:zoom-out}
+.zoom img{max-height:92vh;max-width:100%;object-fit:contain}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:var(--r);z-index:30;font-size:13px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px))}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .steps{grid-template-columns:1fr}
+  .form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+</style>
+
+<style>
+.io{display:flex;gap:8px;flex-wrap:wrap}
+.lead{color:var(--muted);font-size:13px;margin:0}
+.badge{position:absolute;bottom:8px;right:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--panel);color:var(--muted)}
+.pick{position:absolute;bottom:8px;left:8px;width:20px;height:20px;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><i></i><div>라인업 보관함<small>서는 곳 · 조준점 · 결과 화면</small></div></div>
+    <div class="fgroup"><span class="flabel">맵</span><select id="f-map"></select></div>
+    <div class="fgroup"><span class="flabel">요원</span><select id="f-agent"></select></div>
+    <div class="fgroup"><span class="flabel">공격 / 수비</span><div class="seg" id="f-side"></div></div>
+    <div class="fgroup"><span class="flabel">사이트</span><div class="seg" id="f-site"></div></div>
+    <div class="fgroup"><span class="flabel">보기</span><div class="seg" id="f-fav"></div></div>
+    <div class="fgroup"><span class="flabel">공유</span>
+      <div class="io"><button class="btn" id="exp">내보내기</button><button class="btn" id="imp">가져오기</button></div>
+      <input type="file" id="imp-file" accept=".json,application/json" hidden>
+      <span class="hint">내보낸 .json 파일을 친구에게 보내면, 친구가 가져오기로 받을 수 있어요.</span></div>
+    <div class="store-note" id="store-note" hidden></div>
+    <div class="count" id="count">불러오는 중…</div>
+  </aside>
+  <main>
+    <p class="lead" id="lead">이 PC의 브라우저에 저장돼요. 같은 브라우저로 이 파일을 열면 저장한 라인업이 그대로 있어요.</p>
+    <div class="top">
+      <input type="search" id="q" placeholder="스킬, 메모, 태그로 검색 (예: 원웨이, 디퓨즈 방지)">
+      <button class="btn" id="sel">골라서 내보내기</button>
+      <button class="btn primary" id="add">+ 라인업 추가</button>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+<div id="modal"></div>
+
+<script>
+const MAPS=["어센트","바인드","헤이븐","스플릿","아이스박스","브리즈","프랙처","펄","로터스","선셋","어비스","코로드"];
+const AGENTS=["소바","바이퍼","브림스톤","킬조이","케이/오","페이드","게코","하버","아스트라","사이퍼","브리치","데드록","클로브","테호","오멘","스카이","바이스","체임버","레이즈","기타"];
+const SITES=["A","B","C","미드"];
+const STEPS=[["stand","① 서는 위치"],["aim","② 조준점"],["result","③ 결과 화면"]];
+const FIELDS=["uid","map","agent","side","site","ability","title","throwType","memo","tags","images","from"];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const newId=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+
+/* storage: IndexedDB on this PC, memory fallback */
+let idb=null, mine=[], selecting=false, picked=new Set();
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open("lineup-vault",1);r.onupgradeneeded=()=>r.result.createObjectStore("lineups",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function tx(mode,fn){return new Promise((res,rej)=>{const t=idb.transaction("lineups",mode);const st=t.objectStore("lineups");const out=fn(st);t.oncomplete=()=>res(out&&out.result);t.onerror=()=>rej(t.error)})}
+async function loadAll(){if(!idb)return;mine=await tx("readonly",st=>st.getAll())||[]}
+async function put(rec){if(idb)await tx("readwrite",st=>st.put(rec));const i=mine.findIndex(v=>v.id===rec.id);if(i>=0)mine[i]=rec;else mine.push(rec)}
+async function del(id){if(idb)await tx("readwrite",st=>st.delete(id));mine=mine.filter(v=>v.id!==id)}
+
+const F={map:"",agent:"",side:"",site:"",fav:false,q:""};
+function opts(sel,list,all){sel.innerHTML=`<option value="">${all}</option>`+list.map(v=>`<option>${esc(v)}</option>`).join("")}
+opts($("#f-map"),MAPS,"전체 맵"); opts($("#f-agent"),AGENTS,"전체 요원");
+function seg(el,vals,key){el.innerHTML=vals.map(([v,l])=>`<button type="button" data-v="${esc(v)}">${l}</button>`).join("");
+  const sync=()=>el.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===String(F[key]))));
+  el.onclick=e=>{const b=e.target.closest("button");if(!b)return;let v=b.dataset.v;if(key==="fav")v=v==="true";F[key]=v;sync();render()};sync()}
+seg($("#f-side"),[["","전체"],["공격","공격"],["수비","수비"]],"side");
+seg($("#f-site"),[["","전체"],...SITES.map(s=>[s,s])],"site");
+seg($("#f-fav"),[["false","전체"],["true","★ 즐겨찾기"]],"fav");
+$("#f-map").onchange=e=>{F.map=e.target.value;render()};
+$("#f-agent").onchange=e=>{F.agent=e.target.value;render()};
+$("#q").oninput=e=>{F.q=e.target.value.trim().toLowerCase();render()};
+$("#add").onclick=()=>openEdit(null);
+$("#exp").onclick=()=>exportList(filtered(),"보이는 라인업");
+$("#sel").onclick=()=>{if(selecting&&picked.size){exportList(mine.filter(m=>picked.has(m.id)),"고른 라인업");}selecting=!selecting;picked.clear();render()};
+$("#imp").onclick=()=>$("#imp-file").click();
+$("#imp-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importFile(f)};
+
+function filtered(){return mine.filter(x=>(!F.map||x.map===F.map)&&(!F.agent||x.agent===F.agent)&&(!F.side||x.side===F.side)&&(!F.site||x.site===F.site)&&(!F.fav||x.favorite)
+  &&(!F.q||[x.title,x.ability,x.throwType,x.memo,(x.tags||[]).join(" "),x.from||""].join(" ").toLowerCase().includes(F.q)))
+  .sort((a,b)=>(b.favorite-a.favorite)||((b.updatedAt||0)-(a.updatedAt||0)))}
+
+function render(){
+  const list=filtered();
+  $("#count").textContent=`${list.length} / ${mine.length}개 라인업`;
+  $("#sel").textContent=selecting?(picked.size?`${picked.size}개 내보내기`:"선택 취소"):"골라서 내보내기";
+  if(!mine.length){$("#list").innerHTML=`<div class="empty"><h2>아직 저장된 라인업이 없어요</h2>
+    <p>게임에서 스크린샷을 찍고 <b>+ 라인업 추가</b>를 눌러 서는 위치, 조준점, 결과 화면 세 장을 붙여 넣으세요.<br>Ctrl+V로 클립보드 이미지를 바로 붙일 수 있어요. 친구에게 받은 라인업 파일은 <b>가져오기</b>로 넣으면 돼요.</p>
+    <button class="btn primary" onclick="openEdit(null)">첫 라인업 추가</button></div>`;return}
+  if(!list.length){$("#list").innerHTML=`<div class="empty"><h2>조건에 맞는 라인업이 없어요</h2><p>필터를 바꾸거나 검색어를 지워 보세요.</p></div>`;return}
+  $("#list").innerHTML=`<div class="grid">${list.map(x=>{const cover=x.images?.result||x.images?.aim||x.images?.stand;
+    return `<div class="card" role="button" tabindex="0" data-id="${esc(x.id)}"><div class="thumb">${cover?`<img src="${esc(cover)}" alt="" loading="lazy">`:"이미지 없음"}
+      <span class="side-tag ${x.side==="수비"?"def":"atk"}">${esc(x.side)} · ${esc(x.site)}</span>${x.favorite?`<span class="fav" aria-label="즐겨찾기">★</span>`:""}
+      ${x.from?`<span class="badge">받은 라인업</span>`:""}
+      ${selecting?`<input type="checkbox" class="pick" aria-label="내보낼 라인업으로 고르기" ${picked.has(x.id)?"checked":""}>`:""}</div>
+      <div class="cbody"><div class="ctitle">${esc(x.title||x.ability)}</div>
+      <div class="meta"><b>${esc(x.map)}</b>·<b>${esc(x.agent)}</b>·${esc(x.ability)}</div>
+      ${x.throwType?`<div class="meta">${esc(x.throwType)}</div>`:""}
+      ${(x.tags||[]).length?`<div class="meta">${x.tags.map(t=>`<span class="chip">#${esc(t)}</span>`).join("")}</div>`:""}</div></div>`}).join("")}</div>`;
+  $("#list").querySelectorAll(".card").forEach(c=>{const go=()=>{if(selecting){picked.has(c.dataset.id)?picked.delete(c.dataset.id):picked.add(c.dataset.id);render()}else openView(c.dataset.id)};
+    c.onclick=go;c.onkeydown=e=>{if(e.key==="Enter")go()}});
+}
+
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function close(){$("#modal").innerHTML="";document.removeEventListener("paste",onPaste)}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){const z=document.querySelector(".zoom");if(z)z.remove();else close()}});
+function zoom(src){if(!src)return;const z=document.createElement("div");z.className="zoom";z.innerHTML=`<img src="${esc(src)}" alt="확대 이미지">`;z.onclick=()=>z.remove();document.body.appendChild(z)}
+
+/* export / import */
+function exportList(list,label){
+  if(!list.length){toast("내보낼 라인업이 없어요");return}
+  const pack={app:"lineup-vault",version:1,exportedAt:new Date().toISOString(),lineups:list.map(x=>{const o={};FIELDS.forEach(k=>{if(x[k]!==undefined)o[k]=x[k]});return o})};
+  const blob=new Blob([JSON.stringify(pack)],{type:"application/json"});
+  const d=new Date(),stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  const name=list.length===1?`라인업_${list[0].map}_${list[0].agent}_${(list[0].title||list[0].ability).replace(/[\\/:*?"<>|]/g,"").slice(0,30)}.json`:`라인업_${list.length}개_${stamp}.json`;
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast(`${label} ${list.length}개를 파일로 내보냈어요`)}
+async function importFile(file){
+  try{const pack=JSON.parse(await file.text());
+    if(pack?.app!=="lineup-vault"||!Array.isArray(pack.lineups))throw new Error("라인업 보관함에서 내보낸 파일이 아니에요");
+    let added=0,skipped=0;
+    for(const l of pack.lineups){if(!l||!l.map||!l.agent){skipped++;continue}
+      if(l.uid&&mine.some(m=>m.uid===l.uid)){skipped++;continue}
+      const rec={};FIELDS.forEach(k=>{if(l[k]!==undefined)rec[k]=l[k]});
+      rec.images={};STEPS.forEach(([k])=>{const v=l.images?.[k];if(typeof v==="string"&&v.startsWith("data:image/"))rec.images[k]=v});
+      rec.tags=Array.isArray(l.tags)?l.tags.map(String):[];
+      rec.id=newId();rec.uid=l.uid||newId();rec.from=l.from||file.name;rec.favorite=false;rec.updatedAt=Date.now();
+      await put(rec);added++}
+    render();toast(`${added}개를 가져왔어요${skipped?` · 이미 있거나 잘못된 ${skipped}개는 건너뛰었어요`:""}`);
+  }catch(e){toast("가져오지 못했어요: "+(e.message||"파일을 확인해 주세요"))}}
+
+function openView(id){
+  const x=mine.find(i=>i.id===id);if(!x)return;
+  $("#modal").innerHTML=`<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="라인업 상세">
+   <div class="shead"><div><h2>${esc(x.title||x.ability)}</h2>
+     <div class="kv"><div><span>맵</span> <b>${esc(x.map)}</b></div><div><span>요원</span> <b>${esc(x.agent)}</b></div><div><span>진영</span> <b>${esc(x.side)}</b></div><div><span>사이트</span> <b>${esc(x.site)}</b></div><div><span>스킬</span> <b>${esc(x.ability)}</b></div></div>
+     ${x.from?`<div class="hint">받은 파일: ${esc(x.from)}</div>`:""}</div>
+     <div class="actions"><button class="btn" id="v-exp">파일로 내보내기</button><button class="btn" id="v-fav">${x.favorite?"★ 즐겨찾기 해제":"☆ 즐겨찾기"}</button><button class="btn" id="v-edit">수정</button><button class="btn ghost" id="v-close">닫기</button></div></div>
+   <div class="steps">${STEPS.map(([k,l])=>{const s=x.images?.[k]||"";return `<div class="step"><div class="sl"><b>${l.slice(0,1)}</b>${l.slice(1)}</div><button class="shot" data-k="${k}">${s?`<img src="${esc(s)}" alt="${l}">`:"이미지 없음"}</button></div>`}).join("")}</div>
+   ${x.throwType?`<div><div class="flabel">던지는 법</div><div class="howto">${esc(x.throwType)}</div></div>`:""}
+   ${x.memo?`<div><div class="flabel">메모</div><div class="howto">${esc(x.memo)}</div></div>`:""}
+   ${(x.tags||[]).length?`<div class="meta">${x.tags.map(t=>`<span class="chip">#${esc(t)}</span>`).join("")}</div>`:""}
+  </div></div>`;
+  $(".scrim").onclick=e=>{if(e.target.classList.contains("scrim"))close()};
+  $("#v-close").onclick=close; $("#v-edit").onclick=()=>openEdit(x);
+  $("#v-exp").onclick=()=>exportList([x],"라인업");
+  $("#v-fav").onclick=async()=>{await put({...x,favorite:!x.favorite});render();openView(id)};
+  document.querySelectorAll(".shot").forEach(b=>b.onclick=()=>zoom(x.images?.[b.dataset.k]));
+}
+
+let draft=null, activeSlot="stand";
+function onPaste(e){const f=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));if(f){e.preventDefault();setImage(activeSlot,f.getAsFile())}}
+function openEdit(x){
+  draft=x?JSON.parse(JSON.stringify(x)):{map:F.map||MAPS[0],agent:F.agent||"소바",side:F.side||"공격",site:F.site||"A",ability:"",title:"",throwType:"",memo:"",tags:[],favorite:false,images:{}};
+  activeSlot="stand";
+  const sel=(id,list,v)=>`<select id="${id}">${list.map(o=>`<option${o===v?" selected":""}>${esc(o)}</option>`).join("")}</select>`;
+  $("#modal").innerHTML=`<div class="scrim"><form class="sheet" id="ef" role="dialog" aria-modal="true" aria-label="라인업 편집">
+    <div class="shead"><h2>${x?"라인업 수정":"새 라인업"}</h2><button type="button" class="btn ghost" id="e-close">닫기</button></div>
+    <div class="steps">${STEPS.map(([k,l])=>`<div class="step"><div class="sl"><b>${l.slice(0,1)}</b>${l.slice(1)}</div>
+      <div class="shot drop" data-slot="${k}" tabindex="0" role="button" aria-label="${l} 이미지 넣기"></div>
+      <input type="file" accept="image/*" id="file-${k}" hidden></div>`).join("")}</div>
+    <div class="hint">칸을 클릭해 파일을 고르거나, 이미지를 끌어다 놓거나, 칸을 선택한 뒤 Ctrl+V로 붙여 넣으세요. 선택된 칸은 테두리로 표시돼요.</div>
+    <div class="form">
+      <label>맵${sel("e-map",MAPS,draft.map)}</label>
+      <label>요원${sel("e-agent",AGENTS,draft.agent)}</label>
+      <label>진영${sel("e-side",["공격","수비"],draft.side)}</label>
+      <label>사이트${sel("e-site",SITES,draft.site)}</label>
+      <label class="wide">스킬<input type="text" id="e-ability" required placeholder="예: 정찰 화살, 독성 장막, 소이탄" value="${esc(draft.ability)}"></label>
+      <label class="wide">제목<input type="text" id="e-title" placeholder="예: A메인 → 사이트 기본 정찰" value="${esc(draft.title)}"></label>
+      <label class="full">던지는 법<input type="text" id="e-throw" placeholder="예: 점프 + 좌클릭, 충전 2칸 / 1바운스" value="${esc(draft.throwType)}"></label>
+      <label class="full">메모<textarea id="e-memo" placeholder="타이밍, 주의할 점, 같이 쓰면 좋은 스킬">${esc(draft.memo)}</textarea></label>
+      <label class="full">태그 (쉼표로 구분)<input type="text" id="e-tags" placeholder="예: 원웨이, 디퓨즈방지, 포스트플랜트" value="${esc((draft.tags||[]).join(", "))}"></label>
+    </div>
+    <div class="actions">${x?`<span id="del-wrap"><button type="button" class="btn danger" id="e-del">삭제</button></span>`:""}<span style="flex:1"></span>
+      <button type="button" class="btn" id="e-cancel">취소</button><button type="submit" class="btn primary" id="e-save">저장</button></div>
+  </form></div>`;
+  STEPS.forEach(([k])=>paintSlot(k));
+  document.querySelectorAll(".drop").forEach(d=>{const k=d.dataset.slot;
+    d.onclick=()=>{activeSlot=k;markActive();$("#file-"+k).click()};
+    d.onfocus=()=>{activeSlot=k;markActive()};
+    d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("#file-"+k).click()}};
+    d.ondragover=e=>{e.preventDefault();d.classList.add("over")};d.ondragleave=()=>d.classList.remove("over");
+    d.ondrop=e=>{e.preventDefault();d.classList.remove("over");const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))setImage(k,f)};
+    $("#file-"+k).onchange=e=>{const f=e.target.files[0];if(f)setImage(k,f)}});
+  markActive(); document.addEventListener("paste",onPaste);
+  $("#e-close").onclick=close;$("#e-cancel").onclick=close;
+  $(".scrim").onclick=e=>{if(e.target.classList.contains("scrim"))close()};
+  if(x)$("#e-del").onclick=()=>{$("#del-wrap").innerHTML=`<span class="confirm">정말 삭제할까요? <button type="button" class="btn danger" id="e-del2">삭제</button><button type="button" class="btn" id="e-del3">아니요</button></span>`;
+    $("#e-del2").onclick=async()=>{await del(x.id);render();close();toast("삭제했어요")};$("#e-del3").onclick=()=>openEdit(x)};
+  $("#ef").onsubmit=async e=>{e.preventDefault();
+    Object.assign(draft,{map:$("#e-map").value,agent:$("#e-agent").value,side:$("#e-side").value,site:$("#e-site").value,ability:$("#e-ability").value.trim(),
+      title:$("#e-title").value.trim(),throwType:$("#e-throw").value.trim(),memo:$("#e-memo").value.trim(),tags:$("#e-tags").value.split(",").map(s=>s.trim().replace(/^#/,"")).filter(Boolean)});
+    if(!draft.id){draft.id=newId();draft.uid=newId()} draft.updatedAt=Date.now();
+    try{await put(draft);render();close();toast("저장했어요")}catch(err){toast("저장하지 못했어요. 저장 공간이 부족하면 오래된 라인업을 지워 보세요.")}};
+}
+function markActive(){document.querySelectorAll(".drop").forEach(d=>d.classList.toggle("active",d.dataset.slot===activeSlot))}
+function paintSlot(k){const d=document.querySelector(`.drop[data-slot="${k}"]`);if(!d)return;const s=draft.images?.[k];d.innerHTML=s?`<img src="${esc(s)}" alt="">`:"클릭 · 드래그 · Ctrl+V"}
+/* shrink big screenshots so files stay small enough to send */
+function setImage(k,file){const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const max=1600,sc=Math.min(1,max/Math.max(im.width,im.height));
+  const c=document.createElement("canvas");c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  URL.revokeObjectURL(url);draft.images={...(draft.images||{}),[k]:c.toDataURL("image/jpeg",0.85)};paintSlot(k);
+  const i=STEPS.findIndex(s=>s[0]===k);if(i<2){activeSlot=STEPS[i+1][0];markActive()}};im.src=url}
+
+function note(t){const n=$("#store-note");n.textContent=t;n.hidden=false}
+(async()=>{try{idb=await openDB();await loadAll();if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{})}
+  catch(_){note("이 브라우저에서는 저장 공간을 쓸 수 없어요. 창을 닫으면 라인업이 사라지니 내보내기로 꼭 백업하세요.")}
+  render()})();
+</script>
+</body>
+</html>
