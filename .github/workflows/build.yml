@@ -32,6 +32,19 @@ jobs:
           npm install
           npm run dist
 
+      # Microsoft Store용 패키지. Partner Center에서 받은 값 3개를 저장소 Variables에 넣어야 만들어진다
+      # (Settings > Secrets and variables > Actions > Variables: STORE_IDENTITY_NAME, STORE_PUBLISHER, STORE_PUBLISHER_NAME)
+      # 스토어가 서명해 주므로 따로 인증서가 필요 없다
+      - name: 스토어용 패키지 만들기
+        if: ${{ vars.STORE_IDENTITY_NAME != '' }}
+        working-directory: app
+        shell: bash
+        run: >
+          npx electron-builder --win appx --publish never
+          -c.appx.identityName="${{ vars.STORE_IDENTITY_NAME }}"
+          -c.appx.publisher="${{ vars.STORE_PUBLISHER }}"
+          -c.appx.publisherDisplayName="${{ vars.STORE_PUBLISHER_NAME }}"
+
       - name: 버전 읽기
         id: ver
         shell: bash
@@ -46,4 +59,7 @@ jobs:
           body: |
             Windows용 라인업 보관함 설치 파일이에요.
             LineupVault-Setup.exe를 받아서 실행하면 설치돼요.
-          files: app/dist/LineupVault-Setup.exe
+          fail_on_unmatched_files: false
+          files: |
+            app/dist/LineupVault-Setup.exe
+            app/dist/LineupVault-Store.appx
